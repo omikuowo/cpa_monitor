@@ -1,0 +1,17 @@
+services:
+  cpa-monitor:
+    build: .
+    container_name: cpa-monitor
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    volumes:
+      - cpa-data:/data
+    environment:
+      # 放在 Nginx/Caddy 等反向代理后面时打开，用于识别真实 IP 和 HTTPS。
+      TRUST_PROXY: "false"
+      # 可选：设置后，首次初始化需要输入这个口令，防止别人抢先初始化。
+      # SETUP_TOKEN: "change-me"
+
+volumes:
+  cpa-data:
