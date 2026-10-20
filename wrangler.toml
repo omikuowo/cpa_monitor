@@ -1,14 +1,20 @@
 name = "cpa-monitor"
+main = "src/index.js"
 compatibility_date = "2026-05-03"
-pages_build_output_dir = "public"
 
-# 可选：绑定 KV 后，后台显示设置/窗口状态/端点配置会跨浏览器持久化。
-# 你的 Cloudflare Pages 页面提示“绑定通过 wrangler.toml 管理”时，网页端不能添加绑定，这是正常的。
-# 创建 KV 后运行：
-# npm run kv:bind -- <KV_NAMESPACE_ID>
-# 然后提交 wrangler.toml 到 GitHub，Cloudflare 会在下一次部署时应用绑定。
-#
-# 最终会生成类似下面的配置：
+# 前端静态文件。/api/* 不对应任何静态文件，会自动交给 Worker 处理。
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+# 所有配置（管理员密码、CPA 实例、检测参数）都在网页里填写并保存在这个 KV 中。
+# 不需要手动创建：一键部署 / wrangler deploy 会自动创建并绑定 KV namespace。
 [[kv_namespaces]]
 binding = "CPA_MONITOR_KV"
-id = "aa9c01241a064e73b0c8598def17b73f"
+
+# 定时检测：每 5 分钟唤醒一次，实际间隔在网页「设置 → 检测」中配置（0 = 关闭）。
+[triggers]
+crons = ["*/5 * * * *"]
+
+[observability]
+enabled = true

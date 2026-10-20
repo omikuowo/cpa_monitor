@@ -1,17 +1,27 @@
 {
   "name": "cpa-monitor",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
+  "description": "CPA 反代认证文件与 Codex 额度监测面板，支持 Cloudflare 一键部署与 Docker 自托管",
   "scripts": {
-    "dev": "wrangler pages dev public",
-    "deploy": "wrangler pages deploy public",
-    "check": "node --check functions/api/[[path]].js && node --check public/app.js",
-    "kv:create": "wrangler kv namespace create CPA_MONITOR_KV",
-    "kv:list": "wrangler kv namespace list",
-    "kv:bind": "node scripts/set-kv-binding.mjs"
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "start": "node server/node.js",
+    "check": "node --check src/index.js && node --check server/node.js && node --check public/app.js",
+    "test": "node --test tests/*.test.js"
   },
   "devDependencies": {
-    "wrangler": "^4.18.0"
+    "wrangler": "^4.151.3"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "cloudflare": {
+    "bindings": {
+      "CPA_MONITOR_KV": {
+        "description": "保存网页中填写的配置与检测快照，部署时自动创建，无需手动填写。"
+      }
+    }
   }
 }

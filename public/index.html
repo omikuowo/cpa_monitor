@@ -2,387 +2,441 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CPA 额度监测 // 探针</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <title>CPA 额度监测</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
   <link rel="stylesheet" href="/style.css">
+  <script>
+    try {
+      const theme = localStorage.getItem("cpa:theme");
+      document.documentElement.dataset.theme = theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    } catch {}
+  </script>
 </head>
-<body class="settings-booting">
-  <nav class="control-center" id="controlCenter">
-    <button class="control-btn theme-toggle" type="button" id="themeToggle" aria-label="切换夜间模式" title="切换夜间模式">
-      <i class="ph-bold ph-moon"></i>
-    </button>
-    <button class="control-btn settings-toggle" type="button" id="settingsToggle" aria-label="设置" title="设置">
-      <i class="ph-bold ph-gear-six"></i>
-    </button>
-    <button class="control-btn admin-toggle" type="button" id="adminToggle" aria-label="后台登录" title="后台登录">
-      <i class="ph-bold ph-user"></i>
-    </button>
-  </nav>
+<body class="booting">
+  <div class="progress-line" id="progressLine"><span></span></div>
 
-  <div class="login-screen" id="loginScreen" hidden>
-    <form class="login-card" id="loginForm">
-      <div class="login-head">
-        <div class="brand-icon">CPA</div>
-        <div>
-          <h1>后台管理</h1>
-          <p>请输入访问密码以进入监测中心</p>
+  <!-- 顶部菜单栏 -->
+  <header class="menubar" id="menubar">
+    <div class="menubar-brand">
+      <div class="brand-icon">CPA</div>
+      <div class="brand-text">
+        <strong id="siteName">CPA 额度监测</strong>
+        <span id="siteStatus"><i class="status-dot"></i><em>连接中</em></span>
+      </div>
+    </div>
+    <div class="menubar-actions">
+      <button class="check-button" type="button" id="checkBtn" title="检测全部 Codex 额度">
+        <svg class="check-ring" viewBox="0 0 36 36" aria-hidden="true">
+          <circle cx="18" cy="18" r="15" class="ring-track"></circle>
+          <circle cx="18" cy="18" r="15" class="ring-fill" id="checkRing"></circle>
+        </svg>
+        <i class="ph-bold ph-arrow-clockwise"></i>
+        <span id="checkLabel">检测</span>
+      </button>
+      <div class="control-group">
+        <button class="control-btn" type="button" id="themeToggle" aria-label="切换外观"><i class="ph-bold ph-moon"></i></button>
+        <button class="control-btn admin-only" type="button" id="settingsBtn" aria-label="设置"><i class="ph-bold ph-gear-six"></i></button>
+        <button class="control-btn" type="button" id="accountBtn" aria-label="管理员"><i class="ph-bold ph-user"></i></button>
+      </div>
+    </div>
+  </header>
+
+  <main class="workspace" id="workspace">
+    <!-- 概览 -->
+    <section class="panel hero-panel" data-component="hero">
+      <div class="title-bar">
+        <div class="dots"><span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span></div>
+        <span class="title">概览</span>
+      </div>
+      <div class="panel-body hero-body">
+        <div class="hero-ring" aria-label="可用率">
+          <svg viewBox="0 0 120 120">
+            <circle cx="60" cy="60" r="52" class="ring-track"></circle>
+            <circle cx="60" cy="60" r="52" class="ring-fill" id="heroRing"></circle>
+          </svg>
+          <div class="hero-ring-label">
+            <strong id="heroPercent" data-count="0">0</strong><small>%</small>
+            <span>可用率</span>
+          </div>
+        </div>
+        <div class="hero-copy">
+          <div class="eyebrow">root@cpa-monitor:~# monitor --target codex</div>
+          <h1 id="heroTitle">CPA 额度监测</h1>
+          <p id="heroSubtitle">尚未检测</p>
+          <div class="instance-chips" id="instanceChips"></div>
         </div>
       </div>
-      <div class="login-body">
-        <div class="input-group">
-          <input id="passwordInput" type="password" autocomplete="current-password" placeholder=" " required>
-          <label for="passwordInput">访问密码</label>
-          <div class="input-line"></div>
+    </section>
+
+    <section class="metric-grid" data-component="metrics" aria-label="统计">
+      <button class="metric-card" type="button" data-metric-filter="">
+        <span>认证文件</span><strong id="mTotal">0</strong><small id="mTotalHint">0 个实例</small>
+      </button>
+      <button class="metric-card" type="button" data-metric-filter="ok">
+        <span>正常</span><strong class="ok" id="mOk">0</strong><small>2xx 可用</small>
+      </button>
+      <button class="metric-card" type="button" data-metric-filter="invalid_401">
+        <span>失效</span><strong class="danger" id="mInvalid">0</strong><small>401 认证失效</small>
+      </button>
+      <button class="metric-card" type="button" data-metric-filter="limited">
+        <span>受限</span><strong class="warn" id="mLimited">0</strong><small>403 / 429</small>
+      </button>
+      <button class="metric-card" type="button" data-metric-filter="error">
+        <span>错误</span><strong class="danger" id="mErrors">0</strong><small>网络 / 上游</small>
+      </button>
+      <button class="metric-card" type="button" data-metric-filter="unchecked">
+        <span>未检测</span><strong class="muted" id="mUnchecked">0</strong><small id="mUncheckedHint">等待检测</small>
+      </button>
+    </section>
+
+    <section class="panel window-panel" data-window="quota" data-component="quota">
+      <div class="title-bar" data-drag-handle>
+        <div class="dots window-controls">
+          <button class="dot dot-r" type="button" data-window-action="close" aria-label="隐藏"></button>
+          <button class="dot dot-y" type="button" data-window-action="minimize" aria-label="收纳到程序坞"></button>
+          <button class="dot dot-g" type="button" data-window-action="maximize" aria-label="放大"></button>
         </div>
-        <button class="btn primary full-width" type="submit">立即登录</button>
-        <div class="login-error" id="loginError"></div>
+        <span class="title">Codex 额度</span>
+        <span class="title-meta" id="quotaCount">0</span>
+      </div>
+      <div class="panel-body">
+        <div class="quota-grid" id="quotaGrid"></div>
+        <div class="quota-footer" id="quotaFooter" hidden>
+          <button class="btn ghost" type="button" id="quotaMore">显示全部</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel window-panel" data-window="auth-files" data-component="auth-files">
+      <div class="title-bar" data-drag-handle>
+        <div class="dots window-controls">
+          <button class="dot dot-r" type="button" data-window-action="close" aria-label="隐藏"></button>
+          <button class="dot dot-y" type="button" data-window-action="minimize" aria-label="收纳到程序坞"></button>
+          <button class="dot dot-g" type="button" data-window-action="maximize" aria-label="放大"></button>
+        </div>
+        <span class="title">认证文件</span>
+        <span class="title-meta" id="tableCount">0</span>
+      </div>
+      <div class="panel-body">
+        <div class="table-toolbar">
+          <div class="segmented" id="statusFilter" role="tablist">
+            <span class="segmented-thumb"></span>
+            <button type="button" data-value="" class="active">全部</button>
+            <button type="button" data-value="ok">正常</button>
+            <button type="button" data-value="invalid_401">401</button>
+            <button type="button" data-value="limited">受限</button>
+            <button type="button" data-value="error">错误</button>
+            <button type="button" data-value="unchecked">未检测</button>
+          </div>
+          <div class="toolbar-right">
+            <select id="instanceFilter" aria-label="实例"></select>
+            <label class="search-field">
+              <i class="ph-bold ph-magnifying-glass"></i>
+              <input id="searchInput" type="search" placeholder="搜索文件 / 账号">
+            </label>
+          </div>
+        </div>
+        <div class="responsive-table">
+          <table>
+            <thead>
+              <tr>
+                <th>实例</th><th>文件</th><th>账号</th><th>状态</th><th>额度</th><th>HTTP</th><th>延迟</th><th>消息</th>
+              </tr>
+            </thead>
+            <tbody id="fileTable"></tbody>
+          </table>
+        </div>
+        <div class="table-footer">
+          <span id="lastChecked">尚未检测</span>
+          <div class="pagination">
+            <select id="pageSize" aria-label="每页">
+              <option value="10">10 / 页</option>
+              <option value="25" selected>25 / 页</option>
+              <option value="50">50 / 页</option>
+              <option value="100">100 / 页</option>
+            </select>
+            <button class="page-btn" type="button" id="prevPage" aria-label="上一页"><i class="ph-bold ph-caret-left"></i></button>
+            <span id="pageInfo">1 / 1</span>
+            <button class="page-btn" type="button" id="nextPage" aria-label="下一页"><i class="ph-bold ph-caret-right"></i></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel window-panel" data-window="logs" data-component="logs">
+      <div class="title-bar" data-drag-handle>
+        <div class="dots window-controls">
+          <button class="dot dot-r" type="button" data-window-action="close" aria-label="隐藏"></button>
+          <button class="dot dot-y" type="button" data-window-action="minimize" aria-label="收纳到程序坞"></button>
+          <button class="dot dot-g" type="button" data-window-action="maximize" aria-label="放大"></button>
+        </div>
+        <span class="title">日志</span>
+      </div>
+      <div class="panel-body">
+        <div class="log-output" id="logOutput"></div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="dock" id="dock" hidden></nav>
+  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
+  <!-- 初始化向导 -->
+  <div class="setup-screen" id="setupScreen" hidden>
+    <div class="setup-card">
+      <div class="setup-steps" id="setupSteps">
+        <section class="setup-step" data-step="0">
+          <div class="setup-hero-icon"><div class="brand-icon large">CPA</div></div>
+          <h2>欢迎使用 CPA 额度监测</h2>
+          <p>只需几步即可完成配置。所有参数都保存在你自己的存储中，可以随时在设置里修改。</p>
+          <div class="setup-warning" id="setupKvWarning" hidden>
+            <i class="ph-bold ph-warning"></i>
+            <span>未检测到 KV 存储绑定，配置将无法保存。请使用一键部署按钮，或保留 wrangler.toml 中的 kv_namespaces 后重新部署。</span>
+          </div>
+          <button class="btn primary large" type="button" data-setup-next>开始配置</button>
+        </section>
+
+        <section class="setup-step" data-step="1">
+          <h2>设置管理员密码</h2>
+          <p>用于登录后台、管理 CPA 实例和检测参数。</p>
+          <div class="field-stack">
+            <label class="field" id="setupTokenField" hidden>
+              <span>初始化口令</span>
+              <input id="setupToken" type="password" autocomplete="off" placeholder="部署时设置的 SETUP_TOKEN">
+            </label>
+            <label class="field">
+              <span>站点名称</span>
+              <input id="setupSiteName" type="text" maxlength="40" value="CPA 额度监测">
+            </label>
+            <label class="field">
+              <span>管理员密码</span>
+              <input id="setupPassword" type="password" autocomplete="new-password" placeholder="至少 6 位">
+            </label>
+            <label class="field">
+              <span>确认密码</span>
+              <input id="setupPassword2" type="password" autocomplete="new-password">
+            </label>
+          </div>
+          <div class="setup-error" data-setup-error></div>
+          <div class="setup-actions">
+            <button class="btn ghost" type="button" data-setup-back>返回</button>
+            <button class="btn primary" type="button" data-setup-next>继续</button>
+          </div>
+        </section>
+
+        <section class="setup-step" data-step="2">
+          <h2>连接 CPA</h2>
+          <p>填写 CPA 管理地址和管理密钥（Management Key）。可以先跳过，之后在设置里添加。</p>
+          <div class="field-stack">
+            <label class="field">
+              <span>名称</span>
+              <input id="setupInstanceName" type="text" placeholder="例如 Main CPA">
+            </label>
+            <label class="field">
+              <span>管理地址</span>
+              <input id="setupInstanceUrl" type="url" placeholder="https://cpa.example.com" inputmode="url">
+            </label>
+            <label class="field">
+              <span>管理密钥</span>
+              <input id="setupInstanceKey" type="password" autocomplete="off">
+            </label>
+          </div>
+          <div class="test-result" id="setupTestResult"></div>
+          <div class="setup-error" data-setup-error></div>
+          <div class="setup-actions">
+            <button class="btn ghost" type="button" data-setup-back>返回</button>
+            <button class="btn" type="button" id="setupTestBtn">测试连接</button>
+            <button class="btn primary" type="button" data-setup-next>继续</button>
+          </div>
+        </section>
+
+        <section class="setup-step" data-step="3">
+          <h2>访问与检测</h2>
+          <p>决定谁能看到面板，以及是否定时自动检测。</p>
+          <div class="option-list">
+            <label class="switch-row">
+              <div><strong>公开访问</strong><span>未登录访客也能查看额度面板</span></div>
+              <input type="checkbox" id="setupPublic" checked><i class="switch"></i>
+            </label>
+            <label class="switch-row">
+              <div><strong>隐私模式</strong><span>访客看到的文件名和账号会被脱敏</span></div>
+              <input type="checkbox" id="setupPrivacy" checked><i class="switch"></i>
+            </label>
+            <label class="select-row">
+              <div><strong>自动检测</strong><span>由定时任务在后台执行</span></div>
+              <select id="setupAuto">
+                <option value="0">关闭</option>
+                <option value="15">每 15 分钟</option>
+                <option value="30" selected>每 30 分钟</option>
+                <option value="60">每小时</option>
+                <option value="360">每 6 小时</option>
+              </select>
+            </label>
+          </div>
+          <div class="setup-error" data-setup-error></div>
+          <div class="setup-actions">
+            <button class="btn ghost" type="button" data-setup-back>返回</button>
+            <button class="btn primary" type="button" id="setupFinish">完成</button>
+          </div>
+        </section>
+
+        <section class="setup-step" data-step="4">
+          <div class="setup-done"><i class="ph-bold ph-check"></i></div>
+          <h2>一切就绪</h2>
+          <p>配置已保存。现在可以开始检测 Codex 额度了。</p>
+          <button class="btn primary large" type="button" id="setupEnter">进入面板</button>
+        </section>
+      </div>
+      <div class="setup-dots" id="setupDots"><i></i><i></i><i></i><i></i><i></i></div>
+    </div>
+  </div>
+
+  <!-- 登录 -->
+  <div class="modal" id="loginModal" hidden>
+    <div class="modal-backdrop" data-close></div>
+    <form class="sheet login-sheet" id="loginForm">
+      <div class="sheet-icon"><div class="brand-icon">CPA</div></div>
+      <h2>管理员登录</h2>
+      <p>登录后可以管理 CPA 实例与检测设置</p>
+      <label class="field">
+        <span>密码</span>
+        <input id="loginPassword" type="password" autocomplete="current-password" required>
+      </label>
+      <div class="setup-error" id="loginError"></div>
+      <div class="sheet-actions">
+        <button class="btn ghost" type="button" data-close>取消</button>
+        <button class="btn primary" type="submit">登录</button>
       </div>
     </form>
   </div>
 
-  <div class="settings-overlay" id="settingsOverlay" hidden></div>
-  <aside class="settings-drawer" id="settingsDrawer" hidden>
-    <div class="settings-head">
-      <div class="settings-title">
-        <strong>显示设置</strong>
-        <span>个性化您的监测面板</span>
-      </div>
-      <button type="button" id="settingsClose" class="close-btn" aria-label="关闭设置">
-        <i class="ph-bold ph-x"></i>
-      </button>
-    </div>
-    <div class="settings-body">
-      <div class="settings-group">
-        <div class="group-label">显示组件</div>
-        <div class="settings-sync">
-          <div>
-            <strong id="settingsSyncTitle">云端设置</strong>
-            <span id="settingsSyncStatus">等待同步状态</span>
-          </div>
-          <div class="settings-sync-actions">
-            <button class="btn" type="button" id="reloadSettingsBtn">从云端同步</button>
-            <button class="btn primary" type="button" id="saveSettingsBtn">保存到云端</button>
-          </div>
-        </div>
-        <label class="switch-item">
-          <span>隐私模式</span>
-          <input type="checkbox" id="privacyToggle">
-          <i class="switch-track"></i>
-        </label>
-        <label class="switch-item">
-          <span>Codex 额度</span>
-          <input type="checkbox" data-component-toggle="quota">
-          <i class="switch-track"></i>
-        </label>
-        <label class="switch-item">
-          <span>筛选工具</span>
-          <input type="checkbox" data-component-toggle="filters">
-          <i class="switch-track"></i>
-        </label>
-        <label class="switch-item">
-          <span>认证文件列表</span>
-          <input type="checkbox" data-component-toggle="auth-files">
-          <i class="switch-track"></i>
-        </label>
-        <label class="switch-item">
-          <span>实时日志</span>
-          <input type="checkbox" data-component-toggle="logs">
-          <i class="switch-track"></i>
-        </label>
-        <label class="switch-item">
-          <span>统计卡片</span>
-          <input type="checkbox" data-component-toggle="metrics">
-          <i class="switch-track"></i>
-        </label>
-        <label class="switch-item">
-          <span>顶部标题</span>
-          <input type="checkbox" data-component-toggle="hero">
-          <i class="switch-track"></i>
-        </label>
-      </div>
-      <div class="settings-group">
-        <div class="group-label">端点配置</div>
-        <div class="endpoint-form">
-          <input id="endpointName" type="text" placeholder="名称，例如 LA CPA">
-          <input id="endpointBaseUrl" type="url" placeholder="端点 URL，例如 https://api.example.com">
-          <input id="endpointAccessKey" type="password" placeholder="管理密钥">
-          <button class="btn primary" type="button" id="addEndpointBtn">添加 / 更新端点</button>
-        </div>
-        <div class="endpoint-list" id="endpointList"></div>
-      </div>
-    </div>
-  </aside>
+  <!-- 设置 -->
+  <div class="modal" id="settingsModal" hidden>
+    <div class="modal-backdrop" data-close></div>
+    <div class="sheet settings-sheet" role="dialog" aria-label="设置">
+      <aside class="settings-nav">
+        <div class="settings-nav-title">设置</div>
+        <button type="button" class="active" data-tab="instances"><i class="ph-bold ph-hard-drives"></i>CPA 实例</button>
+        <button type="button" data-tab="check"><i class="ph-bold ph-pulse"></i>检测</button>
+        <button type="button" data-tab="display"><i class="ph-bold ph-eye"></i>访问与显示</button>
+        <button type="button" data-tab="account"><i class="ph-bold ph-lock-key"></i>账户</button>
+      </aside>
+      <div class="settings-content">
+        <header class="settings-header">
+          <h2 id="settingsTitle">CPA 实例</h2>
+          <button class="close-btn" type="button" data-close aria-label="关闭"><i class="ph-bold ph-x"></i></button>
+        </header>
 
-  <div class="layout">
-    <aside class="sidebar">
-      <section class="panel">
-        <div class="title-bar">
-          <div class="dots">
-            <span class="dot dot-r"></span>
-            <span class="dot dot-y"></span>
-            <span class="dot dot-g"></span>
-          </div>
-          <span class="title">导航</span>
+        <div class="settings-pane active" data-pane="instances">
+          <div class="instance-list" id="instanceList"></div>
+          <button class="btn add-instance" type="button" id="addInstanceBtn"><i class="ph-bold ph-plus"></i>添加实例</button>
         </div>
-        <div class="panel-body">
-          <div class="brand">
-            <div class="brand-icon">CPA</div>
-            <div class="brand-text">
-              <h1>CPA 监测</h1>
-              <span>Cloudflare 探针</span>
-            </div>
-          </div>
 
-          <div class="nav-section">
-            <div class="nav-label">// 监测</div>
-            <button class="nav-item active" type="button" data-target-kind="codex">
-              <span class="icon">◉</span>
-              Codex
-            </button>
-          </div>
-
-          <div class="nav-section">
-            <div class="nav-label">// 状态</div>
-            <div class="status-grid compact">
-              <div class="status-box">
-                <div class="val" id="sideHealthy">0</div>
-                <div class="label">健康实例</div>
-              </div>
-              <div class="status-box">
-                <div class="val danger" id="sideProblems">0</div>
-                <div class="label">异常账号</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="terminal-note" id="configNote">等待配置加载</div>
-        </div>
-      </section>
-
-      <section class="panel">
-        <div class="title-bar">
-          <div class="dots">
-            <span class="dot dot-r"></span>
-            <span class="dot dot-y"></span>
-            <span class="dot dot-g"></span>
-          </div>
-          <span class="title">工作器</span>
-        </div>
-        <div class="panel-body">
-          <div class="kv-list">
-            <div><span>接口</span><strong id="apiStatus">检查中</strong></div>
-            <div><span>超时</span><strong id="timeoutMs">-</strong></div>
-            <div><span>并发</span><strong id="concurrency">-</strong></div>
-            <div><span>跳过禁用</span><strong id="skipDisabled">-</strong></div>
-          </div>
-        </div>
-      </section>
-    </aside>
-
-    <main class="main">
-      <section class="panel hero-panel configurable-panel" data-component="hero">
-        <div class="title-bar">
-          <div class="dots">
-            <span class="dot dot-r"></span>
-            <span class="dot dot-y"></span>
-            <span class="dot dot-g"></span>
-          </div>
-          <span class="title">CPA 探针</span>
-        </div>
-        <div class="panel-body hero-body">
-          <div>
-            <div class="eyebrow">root@cf-worker:~# monitor --target cpa</div>
-            <h2>CPA 额度监测</h2>
-            <p>缓存认证文件状态、用量检测结果和 CPA 反代实例的剩余额度。</p>
-          </div>
-        </div>
-      </section>
-
-      <section class="metric-grid configurable-panel" data-component="metrics" aria-label="Summary">
-        <div class="metric-card">
-          <span>实例</span>
-          <strong id="metricInstances">0</strong>
-          <small id="metricInstanceHint">0 健康</small>
-        </div>
-        <div class="metric-card">
-          <span>认证文件</span>
-          <strong id="metricFiles">0</strong>
-          <small>全部文件</small>
-        </div>
-        <div class="metric-card">
-          <span>正常</span>
-          <strong class="ok" id="metricOk">0</strong>
-          <small>2xx 用量接口</small>
-        </div>
-        <div class="metric-card">
-          <span>401</span>
-          <strong class="danger" id="metricInvalid">0</strong>
-          <small>认证失效</small>
-        </div>
-        <div class="metric-card">
-          <span>受限</span>
-          <strong class="warn" id="metricLimited">0</strong>
-          <small>403 / 429</small>
-        </div>
-        <div class="metric-card">
-          <span>错误</span>
-          <strong class="danger" id="metricErrors">0</strong>
-          <small>网络 / 上游</small>
-        </div>
-      </section>
-
-      <section class="panel window-panel configurable-panel" data-window="quota" data-component="quota" draggable="true">
-        <div class="title-bar">
-          <div class="dots window-controls">
-            <button class="dot dot-r" type="button" data-window-action="close" title="关闭"></button>
-            <button class="dot dot-y" type="button" data-window-action="minimize" title="收纳"></button>
-            <button class="dot dot-g" type="button" data-window-action="maximize" title="放大"></button>
-          </div>
-          <span class="title" id="quotaWindowTitle">Codex 额度</span>
-        </div>
-        <div class="panel-body">
-          <div class="quota-toolbar">
-            <div>
-              <strong id="quotaHeading">Codex 额度</strong>
-              <span id="quotaCount">0</span>
-            </div>
-            <div class="quota-actions">
-              <select id="quotaMode">
-                <option value="paged">按页显示</option>
-                <option value="all">显示全部</option>
+        <div class="settings-pane" data-pane="check">
+          <div class="option-list">
+            <label class="select-row">
+              <div><strong>自动检测</strong><span>后台定时任务的检测间隔</span></div>
+              <select id="sAuto">
+                <option value="0">关闭</option>
+                <option value="10">每 10 分钟</option>
+                <option value="15">每 15 分钟</option>
+                <option value="30">每 30 分钟</option>
+                <option value="60">每小时</option>
+                <option value="180">每 3 小时</option>
+                <option value="360">每 6 小时</option>
+                <option value="1440">每天</option>
               </select>
-              <button class="icon-btn refresh-action" type="button" id="checkBtn" aria-label="检测全部" title="检测全部">
-                <i class="ph-bold ph-arrow-clockwise"></i>
-              </button>
-            </div>
-          </div>
-          <div class="quota-grid" id="quotaGrid">
-            <div class="empty quota-empty">暂无额度数据，请先点击“检测全部”。</div>
+            </label>
+            <label class="switch-row">
+              <div><strong>跳过已禁用文件</strong><span>disabled 的认证文件不检测</span></div>
+              <input type="checkbox" id="sSkipDisabled"><i class="switch"></i>
+            </label>
+            <label class="number-row">
+              <div><strong>并发数</strong><span>单批次同时检测的数量（1-20）</span></div>
+              <input type="number" id="sConcurrency" min="1" max="20">
+            </label>
+            <label class="number-row">
+              <div><strong>超时（毫秒）</strong><span>单个请求的超时时间</span></div>
+              <input type="number" id="sTimeout" min="3000" max="120000" step="1000">
+            </label>
+            <label class="field wide">
+              <span>检测地址</span>
+              <input type="url" id="sTargetUrl">
+            </label>
           </div>
         </div>
-      </section>
 
-      <section class="panel window-panel configurable-panel" data-window="filters" data-component="filters" draggable="true">
-        <div class="title-bar">
-          <div class="dots window-controls">
-            <button class="dot dot-r" type="button" data-window-action="close" title="关闭"></button>
-            <button class="dot dot-y" type="button" data-window-action="minimize" title="收纳"></button>
-            <button class="dot dot-g" type="button" data-window-action="maximize" title="放大"></button>
+        <div class="settings-pane" data-pane="display">
+          <div class="option-list">
+            <label class="field wide">
+              <span>站点名称</span>
+              <input type="text" id="sSiteName" maxlength="40">
+            </label>
+            <label class="switch-row">
+              <div><strong>公开访问</strong><span>关闭后只有管理员能查看面板</span></div>
+              <input type="checkbox" id="sPublic"><i class="switch"></i>
+            </label>
+            <label class="switch-row">
+              <div><strong>允许访客检测</strong><span>访客点击检测时复用缓存，不会频繁请求 CPA</span></div>
+              <input type="checkbox" id="sAllowCheck"><i class="switch"></i>
+            </label>
+            <label class="number-row">
+              <div><strong>访客缓存（秒）</strong><span>缓存期内访客的检测直接复用结果</span></div>
+              <input type="number" id="sCache" min="10" max="86400">
+            </label>
+            <label class="switch-row">
+              <div><strong>隐私模式</strong><span>访客看到的文件名、账号、邮箱会在服务端脱敏</span></div>
+              <input type="checkbox" id="sPrivacy"><i class="switch"></i>
+            </label>
           </div>
-          <span class="title">筛选</span>
+          <div class="group-label">显示组件</div>
+          <div class="option-list" id="componentToggles"></div>
         </div>
-        <div class="panel-body filters">
-          <label>
-            实例
-            <select id="instanceFilter"></select>
-          </label>
-          <label>
-            状态
-            <select id="statusFilter">
-              <option value="">全部</option>
-              <option value="ok">正常</option>
-              <option value="invalid_401">401</option>
-              <option value="limited_or_forbidden">受限</option>
-              <option value="upstream_error">上游错误</option>
-              <option value="check_error">检测错误</option>
-              <option value="skipped">已跳过</option>
-              <option value="unchecked">未检测</option>
-            </select>
-          </label>
-          <label>
-            禁用
-            <select id="disabledFilter">
-              <option value="">全部</option>
-              <option value="false">false</option>
-              <option value="true">true</option>
-            </select>
-          </label>
-          <label class="search-label">
-            搜索
-            <input id="searchInput" type="search" placeholder="文件 ID / 认证索引 / 账号 ID">
-          </label>
-          <label class="toggle-line">
-            <input id="onlyProblems" type="checkbox">
-            只看异常
-          </label>
-        </div>
-      </section>
 
-      <section class="panel window-panel configurable-panel" data-window="auth-files" data-component="auth-files" draggable="true">
-        <div class="title-bar">
-          <div class="dots window-controls">
-            <button class="dot dot-r" type="button" data-window-action="close" title="关闭"></button>
-            <button class="dot dot-y" type="button" data-window-action="minimize" title="收纳"></button>
-            <button class="dot dot-g" type="button" data-window-action="maximize" title="放大"></button>
+        <div class="settings-pane" data-pane="account">
+          <div class="option-list" id="passwordForm">
+            <label class="field wide"><span>当前密码</span><input type="password" id="pwCurrent" autocomplete="current-password"></label>
+            <label class="field wide"><span>新密码</span><input type="password" id="pwNext" autocomplete="new-password" placeholder="至少 6 位"></label>
+            <div class="row-actions"><button class="btn" type="button" id="pwSave">修改密码</button></div>
           </div>
-          <span class="title">认证文件</span>
-        </div>
-        <div class="panel-body table-wrap">
-          <div class="table-toolbar">
-            <span id="tableCount">0 rows</span>
-            <div class="pagination-controls">
-              <label>
-                每页
-                <select id="pageSizeSelect">
-                  <option value="10">10</option>
-                  <option value="25">25</option>
-                  <option value="50">50</option>
-                  <option value="100">100</option>
-                </select>
-              </label>
-              <button class="page-btn" type="button" id="prevPageBtn" aria-label="上一页">‹</button>
-              <span id="pageInfo">1 / 1</span>
-              <button class="page-btn" type="button" id="nextPageBtn" aria-label="下一页">›</button>
-            </div>
-            <span id="lastChecked">尚未检测</span>
-          </div>
-          <div class="responsive-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>实例</th>
-                  <th>文件</th>
-                  <th>供应商</th>
-                  <th>认证索引</th>
-                  <th>禁用</th>
-                  <th>账号</th>
-                  <th>状态</th>
-                  <th>HTTP</th>
-                  <th>延迟</th>
-                  <th>消息</th>
-                </tr>
-              </thead>
-              <tbody id="fileTable">
-                <tr><td colspan="10" class="empty">正在加载配置</td></tr>
-              </tbody>
-            </table>
+          <p class="pane-note" id="pwEnvNote" hidden>密码由环境变量 ADMIN_PASSWORD 管理，请在部署平台中修改。</p>
+          <div class="option-list">
+            <div class="info-row"><span>版本</span><strong id="aboutVersion">-</strong></div>
+            <div class="row-actions"><button class="btn danger-ghost" type="button" id="logoutBtn"><i class="ph-bold ph-sign-out"></i>退出登录</button></div>
           </div>
         </div>
-      </section>
 
-      <section class="panel window-panel configurable-panel" data-window="logs" data-component="logs" draggable="true">
-        <div class="title-bar">
-          <div class="dots window-controls">
-            <button class="dot dot-r" type="button" data-window-action="close" title="关闭"></button>
-            <button class="dot dot-y" type="button" data-window-action="minimize" title="收纳"></button>
-            <button class="dot dot-g" type="button" data-window-action="maximize" title="放大"></button>
-          </div>
-          <span class="title">日志</span>
-        </div>
-        <div class="panel-body">
-          <div class="cache-status" id="cacheStatus">暂无缓存检测结果</div>
-          <div class="log-output" id="logOutput"></div>
-        </div>
-      </section>
-    </main>
+        <footer class="settings-footer">
+          <span id="settingsStatus"></span>
+          <button class="btn primary" type="button" id="settingsSave">保存</button>
+        </footer>
+      </div>
+    </div>
   </div>
 
-  <div class="window-dock" id="windowDock" aria-label="已收纳窗口"></div>
+  <template id="instanceTemplate">
+    <div class="instance-item">
+      <div class="instance-item-head">
+        <span class="instance-status"></span>
+        <input class="instance-name" type="text" placeholder="名称">
+        <label class="mini-switch" title="启用"><input type="checkbox" class="instance-enabled"><i class="switch"></i></label>
+        <button class="icon-btn instance-remove" type="button" aria-label="删除"><i class="ph-bold ph-trash"></i></button>
+      </div>
+      <div class="instance-item-body">
+        <input class="instance-url" type="url" placeholder="https://cpa.example.com">
+        <input class="instance-key" type="password" autocomplete="off" placeholder="管理密钥">
+        <button class="btn instance-test" type="button">测试</button>
+      </div>
+      <div class="instance-hint"></div>
+    </div>
+  </template>
 
-  <script src="/app.js" type="module"></script>
+  <script type="module" src="/app.js"></script>
 </body>
 </html>
