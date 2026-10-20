@@ -4,6 +4,7 @@ import { log, matchesStatus, renderInstanceChips, renderOverview, renderQuota, r
 import { initWindows, syncComponentVisibility } from "./js/windows.js";
 import { initSettings, openSettings } from "./js/settings.js";
 import { runSetup } from "./js/setup.js";
+import { enhanceSelects } from "./js/select.js";
 
 const FILTER_KEY = "cpa:filters:v3";
 
@@ -27,6 +28,7 @@ main().catch((error) => {
 async function main() {
   restoreFilters();
   bindStatic();
+  enhanceSelects();
   initWindows();
 
   let boot = await api.bootstrap();

@@ -19,7 +19,7 @@ CPA 反代工具的 Codex 额度监测面板：集中查看多个 CPA 实例的�
 3. 点击部署，完成后打开 `https://cpa-monitor.<你的子域>.workers.dev`
 4. 按向导设置管理员密码、添加 CPA 实例，完成
 
-部署按钮会把仓库复制到你的 GitHub 并开启自动构建，之后推送到这个仓库就会自动重新部署。需要自定义域名时，在 Cloudflare 的 Worker 设置 → 域和路由里添加。
+部署按钮会把仓库**复制一份**到你的 GitHub，并把 Worker 连接到那份副本。所以本仓库的更新不会自动部署，参考下面的「更新与自动部署」。需要自定义域名时，在 Cloudflare 的 Worker 设置 → 域和路由里添加。
 
 ### 方式二：命令行部署到 Cloudflare
 
@@ -46,6 +46,21 @@ npm start   # 数据默认保存在 ./data，可用 DATA_DIR 和 PORT 修改
 ```
 
 放在 Nginx / Caddy 后面并启用 HTTPS 时，设置 `TRUST_PROXY=true`，这样登录限速才能拿到真实 IP，Cookie 也会带上 `Secure`。
+
+## 更新与自动部署
+
+**让 Worker 跟随本仓库自动部署（推荐）**：Cloudflare 控制台 → Workers 和 Pages → 打开这个 Worker → 设置 → 构建 → 连接 Git 仓库（已连接副本的先断开），选择本仓库、`main` 分支，部署命令保持 `npx wrangler deploy`。之后每次推送到 `main` 都会自动部署。
+
+**手动部署一次**：
+
+```bash
+git clone https://github.com/omikuowo/cpa_monitor && cd cpa_monitor
+npm install
+npx wrangler login
+npx wrangler deploy --name <控制台里的 Worker 名称>
+```
+
+Worker 名称要和已有的一致（默认 `cpa-monitor`），这样会沿用已经绑定的 KV，配置和数据都不会丢。
 
 ## 初始化与安全
 
