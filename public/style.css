@@ -639,13 +639,14 @@ tr.is-problem td:first-child { box-shadow: inset 3px 0 0 var(--magenta); }
 
 /* ---------- 日志 ---------- */
 
-.log-output { max-height: 220px; overflow: auto; padding: 12px 14px; border-radius: 12px; background: #16191d; color: #c9d3de; font-size: 11.5px; line-height: 1.8; }
-.log-output:empty::before { content: "暂无日志"; color: #6f7a88; }
+.log-output { max-height: 220px; overflow: auto; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg-inset); color: var(--text); font-size: 11.5px; line-height: 1.8; }
+:root[data-theme="dark"] .log-output { background: #16191d; color: #c9d3de; }
+.log-output:empty::before { content: "暂无日志"; color: var(--text-muted); }
 .log-line { display: flex; gap: 10px; }
-.log-line time { color: #6f7a88; flex: none; }
-.log-line strong { flex: none; min-width: 44px; color: #7fb8ff; }
-.log-line.error strong { color: #ff7894; }
-.log-line.ok strong { color: #4fd182; }
+.log-line time { color: var(--text-muted); flex: none; }
+.log-line strong { flex: none; min-width: 44px; color: var(--accent); }
+.log-line.error strong { color: var(--magenta); }
+.log-line.ok strong { color: var(--green); }
 .log-line span { overflow-wrap: anywhere; }
 
 /* ---------- 程序坞 ---------- */
